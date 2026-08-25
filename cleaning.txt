@@ -1,0 +1,57 @@
+Saved cleaned CSV to: /Users/sebastian/development/nyc-311-data-pipeline/data/processed/nyc_311_cleaned.csv
+Saved cleaned Parquet to: /Users/sebastian/development/nyc-311-data-pipeline/data/processed/nyc_311_cleaned.parquet
+<class 'pandas.DataFrame'>
+RangeIndex: 381228 entries, 0 to 381227
+Data columns (total 48 columns):
+ #   Column                                Non-Null Count   Dtype          
+---  ------                                --------------   -----          
+ 0   Unique Key                            381228 non-null  int64          
+ 1   Created Date                          381228 non-null  datetime64[us] 
+ 2   Closed Date                           375575 non-null  datetime64[us] 
+ 3   Agency                                381228 non-null  str            
+ 4   Agency Name                           381228 non-null  str            
+ 5   Problem (formerly Complaint Type)     381228 non-null  str            
+ 6   Problem Detail (formerly Descriptor)  376623 non-null  str            
+ 7   Additional Details                    168683 non-null  str            
+ 8   Location Type                         346372 non-null  str            
+ 9   Incident Zip                          378621 non-null  string         
+ 10  Incident Address                      370676 non-null  str            
+ 11  Street Name                           370669 non-null  str            
+ 12  Cross Street 1                        238047 non-null  str            
+ 13  Cross Street 2                        238100 non-null  str            
+ 14  Intersection Street 1                 229549 non-null  str            
+ 15  Intersection Street 2                 229676 non-null  str            
+ 16  Address Type                          379728 non-null  str            
+ 17  City                                  369685 non-null  str            
+ 18  Landmark                              210331 non-null  str            
+ 19  Facility Type                         746 non-null     str            
+ 20  Status                                381228 non-null  str            
+ 21  Due Date                              1602 non-null    str            
+ 22  Resolution Description                375048 non-null  str            
+ 23  Resolution Action Updated Date        377664 non-null  datetime64[us] 
+ 24  Community Board                       381228 non-null  str            
+ 25  Council District                      376152 non-null  float64        
+ 26  Police Precinct                       381228 non-null  str            
+ 27  BBL                                   351967 non-null  float64        
+ 28  Borough                               381228 non-null  str            
+ 29  X Coordinate (State Plane)            377647 non-null  str            
+ 30  Y Coordinate (State Plane)            377655 non-null  str            
+ 31  Open Data Channel Type                381228 non-null  str            
+ 32  Park Facility Name                    380968 non-null  str            
+ 33  Park Borough                          381228 non-null  str            
+ 34  Vehicle Type                          13087 non-null   str            
+ 35  Taxi Company Borough                  284 non-null     string         
+ 36  Taxi Pick Up Location                 3376 non-null    str            
+ 37  Bridge Highway Name                   1713 non-null    str            
+ 38  Bridge Highway Direction              933 non-null     str            
+ 39  Road Ramp                             777 non-null     str            
+ 40  Bridge Highway Segment                1705 non-null    str            
+ 41  Latitude                              377645 non-null  float64        
+ 42  Longitude                             377645 non-null  float64        
+ 43  Location                              377645 non-null  str            
+ 44  request_year                          381228 non-null  int32          
+ 45  request_month                         381228 non-null  str            
+ 46  request_day_of_week                   381228 non-null  str            
+ 47  resolution_time                       375575 non-null  timedelta64[us]
+dtypes: datetime64[us](3), float64(4), int32(1), int64(1), str(36), string(2), timedelta64[us](1)
+memory usage: 393.2 MB
