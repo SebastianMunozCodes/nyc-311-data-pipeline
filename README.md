@@ -119,19 +119,21 @@ The raw and processed datasets are excluded from GitHub because of their size.
 
 ## Project Structure
 
-nyc-311-data-pipeline/  
-├── data/  
-│   ├── raw/  
-│   ├── processed/  
-│   └── transformed/  
-├── notebooks/  
-├── src/  
-│   ├── ingest.py  
-│   ├── inspection.py  
-│   └── clean.py  
-├── README.md  
-├── requirements.txt  
-└── .gitignore  
+```text
+nyc-311-data-pipeline/
+├── data/
+│   ├── raw/
+│   ├── processed/
+│   └── transformed/
+├── notebooks/
+├── src/
+│   ├── ingest.py
+│   ├── inspection.py
+│   └── clean.py
+├── README.md
+├── requirements.txt
+└── .gitignore
+``` 
 
 ## Technologies
 
