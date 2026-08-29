@@ -1,121 +1,321 @@
-# NYC 311 Data Pipeline
+# NYC 311 Data Engineering Pipeline
 
-A data engineering portfolio project that processes NYC 311 service request data using Python, Pandas, Parquet, PySpark, SQL, and Databricks.
+A data engineering portfolio project that builds a PySpark-based pipeline for ingesting, validating, cleaning, transforming, and analyzing NYC 311 service request data.
+
+The project uses a historical NYC 311 dataset to practice and demonstrate data engineering concepts including Spark DataFrames, data quality validation, Parquet storage, transformations, SQL analytics, and Databricks.
 
 ## Project Overview
 
-This project builds an end-to-end data pipeline using NYC 311 service request data.
+The dataset contains NYC 311 service requests across all five boroughs during the 2025 holiday season.
 
-The current dataset covers:
+### Dataset Scope
 
-- All five NYC boroughs
-- November 27, 2025 through January 2, 2026
-- 381,228 service requests
-- 44 raw columns
+- **Source:** NYC Open Data
+- **Dataset:** 311 Service Requests from 2020 to Present
+- **Date range:** November 27, 2025 through January 2, 2026
+- **Rows:** 381,228
+- **Raw columns:** 44
+- **Coverage:** All five NYC boroughs
 
-The goal is to clean, validate, transform, and analyze the data using tools commonly used in data engineering workflows.
+A historical date range was intentionally selected so the project could work with a mostly completed set of service requests rather than continuously changing current data.
 
-## Current Pipeline
+## Pipeline Architecture
 
-NYC Open Data  
-↓  
-Raw CSV  
-↓  
-Python / Pandas Ingestion  
-↓  
-Schema Validation  
-↓  
-Data Inspection  
-↓  
-Data Cleaning  
-↓  
-Derived Columns  
-↓  
-Cleaned CSV + Parquet  
-↓  
-PySpark Transformations  
-↓  
-SQL Analysis  
-↓  
-Databricks  
+```text
+NYC Open Data
+      ↓
+Raw CSV
+      ↓
+PySpark Ingestion
+      ↓
+Schema & Column Validation
+      ↓
+PySpark Data Quality Inspection
+      ↓
+PySpark Cleaning
+      ↓
+Cleaned Parquet
+      ↓
+PySpark Transformations
+      ↓
+Structured / Transformed Output
+      ↓
+SQL Analysis
+      ↓
+Databricks
+```
+
+PySpark is the primary processing engine for the pipeline.
 
 ## Current Project Status
 
 ### Completed
 
-- Project structure
-- Raw data ingestion
+- Project structure and virtual environment
+- NYC Open Data acquisition
+- PySpark installation and local Spark configuration
+- Raw CSV ingestion with PySpark
 - File existence validation
 - Expected column validation
-- Raw data inspection
-- Missing value inspection
-- Duplicate detection
-- Borough and status inspection
-- Complaint type consistency checks
+- Spark schema inspection
+- Dataset row and column validation
 - Date range validation
-- Datetime conversion
-- Complaint type standardization
-- Derived column creation
-- Cleaned CSV output
-- Cleaned Parquet output
+- Missing-value analysis
+- Detection of source placeholder values such as `N/A`
+- Full-row duplicate detection
+- Unique Key duplicate validation
+- Status quality analysis
+- Closed Date consistency checks
+- Invalid date-order detection
+- Borough and geographic data inspection
+- Coordinate completeness checks
+- Complaint type analysis
+- Agency quality and consistency analysis
 
-### Next Steps
+### In Progress
 
-- Load cleaned Parquet data using PySpark
-- Practice Spark DataFrame operations
-- Apply filtering and transformations
-- Perform aggregations with PySpark
-- Build SQL analysis queries
+- PySpark cleaning pipeline
+
+### Planned
+
+- Write cleaned data to Parquet using Spark
+- Build meaningful PySpark transformations
+- Use `withColumn`, `groupBy`, and aggregations
+- Perform null handling with Spark
+- Create transformed datasets
+- Analyze transformed data with SQL
 - Introduce Databricks into the workflow
+- Document final pipeline architecture and findings
 
-## Data Cleaning
+## Data Quality Findings
 
-The cleaning stage currently includes:
+The PySpark inspection layer identified several issues that guide the cleaning stage.
 
-- Converting date columns to datetime
-- Preserving legitimate missing values instead of blindly dropping rows
-- Standardizing inconsistent complaint type capitalization
-- Keeping unresolved requests with missing closed dates
-- Preserving missing geographic fields when the remaining record is still useful
+### Missing Values
 
-Datetime columns include:
+Missing data is not automatically removed.
 
+Some fields are naturally optional or only apply to specific types of 311 requests. The pipeline preserves missing values when there is not enough reliable information to replace them.
+
+The inspection also found that NYC 311 uses the literal value:
+
+```text
+N/A
+```
+
+in several string columns as a missing-data placeholder.
+
+These values will be normalized to Spark `NULL` values during cleaning.
+
+### Closed Date
+
+Most requests with a missing `Closed Date` are legitimately unresolved requests with statuses such as:
+
+- Open
+- In Progress
+- Pending
+- Assigned
+- Started
+
+One request marked `Closed` has a missing `Closed Date`. The pipeline will preserve the missing value rather than fabricate a timestamp.
+
+### Invalid Date Ordering
+
+Inspection identified **40 records where `Created Date` occurs after `Closed Date`**.
+
+Of these:
+
+- 38 are Pending DOT Street Light Condition requests
+- 2 are Closed DOT Street Condition requests
+
+The original source dates will be preserved, but these records will not be allowed to produce misleading negative resolution-time values.
+
+### Complaint Type Consistency
+
+Two complaint types appear with inconsistent capitalization:
+
+```text
+Elevator
+ELEVATOR
+
+Plumbing
+PLUMBING
+```
+
+These values will be standardized during cleaning.
+
+### Geographic Data
+
+Some records contain:
+
+- missing ZIP codes
+- missing latitude/longitude
+- `Unspecified` borough values
+
+These values will not be fabricated when reliable replacement information is unavailable.
+
+### Duplicate Validation
+
+The dataset contains:
+
+```text
+Full-row duplicates: 0
+Duplicate Unique Keys: 0
+```
+
+No duplicate-removal step is currently necessary.
+
+### Agency Validation
+
+Agency inspection found:
+
+```text
+Missing or blank agencies: 0
+Agency code/name inconsistencies: 0
+```
+
+No agency cleaning is currently required.
+
+## PySpark Ingestion
+
+`spark_ingest.py` is responsible for loading and validating the raw NYC 311 dataset.
+
+The ingestion stage:
+
+- verifies that the raw file exists
+- creates a Spark DataFrame from the CSV
+- reads the CSV header
+- infers the initial schema
+- preserves identifier-like fields such as ZIP codes as strings
+- validates required columns
+- returns a reusable Spark DataFrame
+
+Important expected fields include:
+
+- `Unique Key`
 - `Created Date`
 - `Closed Date`
-- `Resolution Action Updated Date`
+- `Agency`
+- `Problem (formerly Complaint Type)`
+- `Status`
+- `Borough`
 
-## Derived Columns
+## PySpark Inspection
 
-The pipeline creates the following additional fields:
+`spark_inspection.py` performs data-quality analysis before any cleaning decisions are applied.
 
-- `request_year`
-- `request_month`
-- `request_day_of_week`
-- `resolution_time`
+Current inspections include:
 
-`resolution_time` is calculated as:
+- row and column counts
+- schema inspection
+- date range validation
+- null counts and percentages
+- missing-value placeholder detection
+- core-field completeness
+- full-row duplicates
+- duplicate Unique Keys
+- status distributions
+- Closed Date consistency
+- invalid date ordering
+- borough distributions
+- ZIP-code completeness
+- coordinate completeness
+- complaint type distributions
+- agency distributions
+- agency name consistency
 
-`Closed Date - Created Date`
+The inspection stage is intentionally separated from cleaning so that cleaning rules are based on observed data rather than assumptions.
 
-Requests that have not been closed retain a missing resolution time.
+## Cleaning Plan
 
-## Output Formats
+`spark_clean.py` will apply the cleaning decisions identified during inspection.
 
-The cleaned dataset is written to both:
+Planned cleaning includes:
 
-`data/processed/nyc_311_cleaned.csv`
+1. Convert date columns to Spark timestamp types:
+   - `Created Date`
+   - `Closed Date`
+   - `Resolution Action Updated Date`
 
-`data/processed/nyc_311_cleaned.parquet`
+2. Normalize known missing-value placeholders:
+   - Convert literal `N/A` values to Spark `NULL`
 
-Parquet is included because it provides:
+3. Handle invalid date ordering:
+   - Preserve original source values
+   - Prevent invalid negative resolution times
 
-- Smaller file sizes
-- Better preservation of data types
-- Faster analytical processing
-- Efficient column-based reads
-- Strong compatibility with Spark and Databricks
+4. Standardize complaint type capitalization:
+   - `ELEVATOR` → `Elevator`
+   - `PLUMBING` → `Plumbing`
 
-The raw and processed datasets are excluded from GitHub because of their size.
+5. Preserve legitimate unresolved requests with missing `Closed Date`
+
+6. Preserve uncertain geographic values rather than fabricating data
+
+7. Write the cleaned dataset to Parquet
+
+## Why Parquet?
+
+The processed layer uses Parquet instead of relying on CSV for downstream processing.
+
+Parquet provides:
+
+- columnar storage
+- smaller file sizes
+- preserved data types
+- efficient analytical reads
+- strong PySpark compatibility
+- strong Databricks compatibility
+- efficient downstream SQL analytics
+
+The raw source remains CSV because that is how the dataset is obtained from NYC Open Data.
+
+## Planned PySpark Transformations
+
+After cleaning, `spark_transform.py` will contain meaningful project transformations rather than basic Spark practice exercises.
+
+Planned work includes:
+
+- derived date fields
+- resolution-time calculations
+- complaint volume aggregations
+- borough-level aggregations
+- agency-level aggregations
+- complaint-type aggregations
+- null-aware transformations
+- potentially joins where they add meaningful analytical value
+
+The goal is to demonstrate how Spark can transform a cleaned dataset into structured analytical outputs.
+
+## SQL Analysis
+
+SQL will be used after the transformation stage to answer analytical questions using the structured data produced by the pipeline.
+
+Planned questions include:
+
+- Which complaint types generated the most requests?
+- Which boroughs generated the highest request volume?
+- Which agencies handled the most requests?
+- How did request volume change throughout the holiday period?
+- Which complaint types had the longest resolution times?
+- How did resolution time vary by borough?
+- How did resolution time vary by agency?
+- How did complaint patterns differ across boroughs?
+
+The SQL portion will focus on transferable concepts such as:
+
+- filtering
+- grouping
+- aggregations
+- CTEs
+- joins
+- window functions
+
+## Databricks
+
+A later stage of the project will recreate meaningful parts of the local Spark workflow in Databricks.
+
+The purpose is to demonstrate how the same PySpark and SQL concepts used locally can operate within a modern data engineering platform.
 
 ## Project Structure
 
@@ -127,38 +327,80 @@ nyc-311-data-pipeline/
 │   └── transformed/
 ├── notebooks/
 ├── src/
-│   ├── ingest.py
-│   ├── inspection.py
-│   └── clean.py
+│   ├── clean.py
+│   ├── spark_ingest.py
+│   ├── spark_inspection.py
+│   ├── spark_clean.py
+│   └── spark_transform.py
 ├── README.md
 ├── requirements.txt
 └── .gitignore
-``` 
+```
+
+`clean.py` is currently retained temporarily as a reference from the earlier Pandas implementation while the cleaning logic is migrated to PySpark. It will be removed once `spark_clean.py` has been completed and validated.
+
+Raw and processed datasets are excluded from GitHub because of their size.
 
 ## Technologies
 
 - Python
-- Pandas
-- PyArrow
-- Parquet
+- Apache Spark
 - PySpark
+- Parquet
+- PyArrow
 - SQL
 - Databricks
+- Git / GitHub
+
+Pandas was used during the early prototype of the project, but the active pipeline is being rebuilt around PySpark.
+
+## Requirements
+
+Python dependencies are listed in:
+
+```text
+requirements.txt
+```
+
+They can be installed with:
+
+```bash
+pip install -r requirements.txt
+```
+
+The project also requires a compatible Java installation because Apache Spark runs on the JVM.
 
 ## Data Source
 
-NYC Open Data  
-311 Service Requests from 2020 to Present
+**NYC Open Data**  
+**311 Service Requests from 2020 to Present**
+
+The raw dataset is not stored in this repository because of its size.
 
 ## Project Goal
 
-The goal of this project is to demonstrate a practical data engineering workflow by taking raw public data and moving it through ingestion, validation, cleaning, transformation, storage, and analysis stages.
+The goal of this project is to demonstrate a practical Spark-oriented data engineering workflow using real public data.
 
-Future analysis will focus on questions such as:
+Rather than using PySpark only for isolated examples, the project applies Spark throughout the pipeline:
 
-- Which complaint types are most common?
-- Which boroughs generate the most service requests?
-- Which agencies receive the most requests?
-- How does complaint volume change over time?
-- Which complaint types take the longest to resolve?
-- How does resolution time vary across boroughs and agencies?
+```text
+Raw Data
+   ↓
+Ingestion
+   ↓
+Validation
+   ↓
+Inspection
+   ↓
+Cleaning
+   ↓
+Transformation
+   ↓
+Storage
+   ↓
+SQL Analysis
+   ↓
+Databricks
+```
+
+The final project is intended to demonstrate both the technical implementation and the reasoning behind data-quality and transformation decisions.
