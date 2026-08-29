@@ -4,6 +4,25 @@ A data engineering portfolio project that builds a PySpark-based pipeline for in
 
 The project uses a historical NYC 311 dataset to practice and demonstrate data engineering concepts including Spark DataFrames, data quality validation, Parquet storage, transformations, SQL analytics, and Databricks.
 
+## Table of Contents
+
+- [Project Overview](#project-overview)
+- [Pipeline Architecture](#pipeline-architecture)
+- [Current Project Status](#current-project-status)
+- [Data Quality Findings](#data-quality-findings)
+- [PySpark Ingestion](#pyspark-ingestion)
+- [PySpark Inspection](#pyspark-inspection)
+- [Cleaning Plan](#cleaning-plan)
+- [Why Parquet?](#why-parquet)
+- [Planned PySpark Transformations](#planned-pyspark-transformations)
+- [SQL Analysis](#sql-analysis)
+- [Databricks](#databricks)
+- [Project Structure](#project-structure)
+- [Technologies](#technologies)
+- [Requirements](#requirements)
+- [Data Source](#data-source)
+- [Project Goal](#project-goal)
+
 ## Project Overview
 
 The dataset contains NYC 311 service requests across all five boroughs during the 2025 holiday season.
