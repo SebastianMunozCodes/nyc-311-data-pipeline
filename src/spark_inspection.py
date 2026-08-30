@@ -55,7 +55,6 @@ STATUS_CHECK_COLUMNS = [
     "Borough",
 ]   
     
-
 def inspect_structure(df):
     print(f"Row count: {df.count()}")
     print(f"Column count: {len(df.columns)}")
@@ -237,7 +236,7 @@ def inspect_status_quality(df):
     print("Closed + missing Closed Date:")
     closed_missing_closed.show(vertical=True, truncate=False)
 
-    nonClosed_closed = (
+    non_closed_with_closed_date = (
         df
         .filter(
             (F.col("Status") != "Closed") &
@@ -246,13 +245,16 @@ def inspect_status_quality(df):
         .select(*STATUS_CHECK_COLUMNS)
     )
 
-    print(f"Non-Closed + Closed Date count: {nonClosed_closed.count()}")
+    print(
+        f"Non-Closed + Closed Date count: "
+        f"{non_closed_with_closed_date.count()}"
+    )
 
     print("Non-Closed + Closed Date sample:")
-    nonClosed_closed.show(truncate=False)
+    non_closed_with_closed_date.show(truncate=False)
 
     print("Non-Closed + Closed Date by Status:")
-    nonClosed_closed.groupBy("Status").count().withColumnRenamed(
+    non_closed_with_closed_date.groupBy("Status").count().withColumnRenamed(
         "count", "Count"
     ).show()
 
@@ -260,30 +262,69 @@ def inspect_status_quality(df):
         df
         .withColumn(
             "created_date_timestamp",
-            F.to_timestamp("Created Date", "MM/dd/yyyy hh:mm:ss a")
+            F.to_timestamp(
+                "Created Date",
+                "MM/dd/yyyy hh:mm:ss a"
+            )
         )
         .withColumn(
             "closed_date_timestamp",
-            F.to_timestamp("Closed Date", "MM/dd/yyyy hh:mm:ss a")
+            F.to_timestamp(
+                "Closed Date",
+                "MM/dd/yyyy hh:mm:ss a"
+            )
         )
     )
 
-    createdDate_closedDate = (
+    invalid_date_records = (
         temp_df
         .filter(
             F.col("created_date_timestamp") > F.col("closed_date_timestamp")
         )
+    )
+
+    invalid_date_summary = (
+        invalid_date_records
         .select(*STATUS_CHECK_COLUMNS)
     )
 
     print("Cases where Created Date > Closed Date:")
-    createdDate_closedDate.show(createdDate_closedDate.count(), truncate=False)
+    invalid_date_summary.show(
+        invalid_date_summary.count(),
+        truncate=False
+    )
 
     print("Created Date > Closed Date by Status:")
-    createdDate_closedDate.groupBy("Status").count().withColumnRenamed(
+    invalid_date_summary.groupBy("Status").count().withColumnRenamed(
         "count", "Count"
     ).show()
 
+    matching_resolution_dates = (
+        invalid_date_records
+        .filter(
+            F.col("Closed Date") == F.col("Resolution Action Updated Date")
+        )
+    )
+
+    matching_resolution_dates_count = (matching_resolution_dates.count())
+    print(f"Created Date > Closed Date records where Closed Date == Resolution Action Updated Date: {matching_resolution_dates_count}")
+
+    invalid_date_details = (
+        invalid_date_records
+        .select(
+            "Unique Key",
+            "Created Date",
+            "Closed Date",
+            "Resolution Action Updated Date",
+            "Agency",
+            "Problem (formerly Complaint Type)",
+            "Status",
+            "Borough"
+        )
+    )
+
+    print("Additional details for Created Date > Closed Date records:")
+    invalid_date_details.show(invalid_date_details.count(), truncate=False)
 
 def inspect_geography(df):
     borough_counts = (
@@ -494,11 +535,11 @@ def inspect_agencies(df):
     print()
 
 if __name__ == "__main__":
-    inspect_structure(df)
-    inspect_missing_values(df)
-    inspect_missing_placeholders(df)
-    inspect_duplicates(df)
+    #inspect_structure(df)
+    #inspect_missing_values(df)
+    #inspect_missing_placeholders(df)
+    #inspect_duplicates(df)
     inspect_status_quality(df)
-    inspect_geography(df)
-    inspect_complaints(df)
-    inspect_agencies(df)
+    #inspect_geography(df)
+    #inspect_complaints(df)
+    #inspect_agencies(df)
