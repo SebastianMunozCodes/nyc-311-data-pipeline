@@ -3,7 +3,7 @@ from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 from pyspark.sql.types import StringType
 
-from spark_ingest import load_raw_data
+from ingest import load_raw_data
 
 spark = (
     SparkSession.builder
@@ -535,11 +535,11 @@ def inspect_agencies(df):
     print()
 
 if __name__ == "__main__":
-    #inspect_structure(df)
-    #inspect_missing_values(df)
-    #inspect_missing_placeholders(df)
-    #inspect_duplicates(df)
+    inspect_structure(df)
+    inspect_missing_values(df)
+    inspect_missing_placeholders(df)
+    inspect_duplicates(df)
     inspect_status_quality(df)
-    #inspect_geography(df)
-    #inspect_complaints(df)
-    #inspect_agencies(df)
+    inspect_geography(df)
+    inspect_complaints(df)
+    inspect_agencies(df)
