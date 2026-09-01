@@ -1,8 +1,8 @@
 # NYC 311 Data Engineering Pipeline
 
-A data engineering portfolio project that builds a PySpark-based pipeline for ingesting, validating, cleaning, transforming, and analyzing NYC 311 service request data.
+A data engineering portfolio project that builds an end-to-end PySpark pipeline for ingesting, validating, cleaning, transforming, and analyzing NYC 311 service request data.
 
-The project uses a historical NYC 311 dataset to demonstrate practical data engineering concepts including Spark DataFrames, data quality validation, Parquet storage, transformations, SQL analytics, and Databricks.
+The project uses a historical NYC 311 dataset to demonstrate practical data engineering concepts including Spark DataFrames, data quality validation, Parquet storage, transformations, analytical summaries, SQL, and Databricks. :contentReference[oaicite:0]{index=0}
 
 ## Table of Contents
 
@@ -13,8 +13,9 @@ The project uses a historical NYC 311 dataset to demonstrate practical data engi
 - [PySpark Ingestion](#pyspark-ingestion)
 - [PySpark Inspection](#pyspark-inspection)
 - [PySpark Cleaning](#pyspark-cleaning)
+- [PySpark Transformation](#pyspark-transformation)
+- [Transformation Outputs](#transformation-outputs)
 - [Why Parquet?](#why-parquet)
-- [Planned PySpark Transformations](#planned-pyspark-transformations)
 - [SQL Analysis](#sql-analysis)
 - [Databricks](#databricks)
 - [Project Structure](#project-structure)
@@ -27,9 +28,9 @@ The project uses a historical NYC 311 dataset to demonstrate practical data engi
 
 This project builds an end-to-end data engineering pipeline using NYC 311 service request data.
 
-The pipeline begins with raw CSV data from NYC Open Data and processes it locally using PySpark. Data quality issues are identified through a dedicated inspection layer before cleaning rules are applied.
+The pipeline begins with raw CSV data from NYC Open Data and processes it locally using PySpark. Data quality issues are identified through a dedicated inspection stage before cleaning rules are applied.
 
-The cleaned dataset is stored in Parquet format for downstream Spark transformations, SQL analysis, and eventual Databricks integration.
+The cleaned dataset is stored in Parquet format, transformed into analysis-ready data, and used to produce summary datasets for complaint types, boroughs, agencies, and request dates.
 
 ### Dataset Scope
 
@@ -40,7 +41,7 @@ The cleaned dataset is stored in Parquet format for downstream Spark transformat
 - **Raw columns:** 44
 - **Coverage:** All five NYC boroughs
 
-A historical date range was intentionally selected so the project could work with a mostly completed set of service requests rather than continuously changing current data.
+A historical date range was intentionally selected so the project could work with a mostly completed set of service requests rather than continuously changing current data. :contentReference[oaicite:1]{index=1}
 
 ## Pipeline Architecture
 
@@ -59,9 +60,11 @@ PySpark Cleaning
       ↓
 Cleaned Parquet
       ↓
-PySpark Transformations
+PySpark Transformation
       ↓
-Transformed Data
+Transformed Parquet
+      ↓
+Summary Datasets
       ↓
 SQL Analysis
       ↓
@@ -102,21 +105,28 @@ PySpark is the primary processing engine throughout the pipeline.
 - Invalid date-order flagging
 - Post-cleaning validation
 - Cleaned Parquet output
+- PySpark transformation pipeline
+- Request date feature creation
+- Resolution-time calculation
+- Transformation validation
+- Transformed Parquet output
+- Complaint summary dataset
+- Borough summary dataset
+- Agency summary dataset
+- Date summary dataset
+- Git-tracked data directory structure using `.gitkeep`
 
 ### In Progress
 
-- PySpark transformation pipeline
+- SQL analysis layer
 
 ### Planned
 
-- Create derived analytical columns
-- Calculate valid resolution times
-- Build Spark aggregations
-- Create transformed datasets
-- Write transformed outputs to Parquet
-- Analyze transformed data with SQL
-- Use CTEs, joins, aggregations, and window functions
+- Build analytical SQL queries
+- Use CTEs, joins, aggregations, ranking, and window functions
+- Analyze complaint volume and resolution-time patterns
 - Introduce Databricks into the workflow
+- Recreate meaningful parts of the local Spark workflow in Databricks
 - Document final analytical findings
 
 ## Data Quality Findings
@@ -139,7 +149,7 @@ N/A
 
 as a missing-data placeholder in several string columns.
 
-These values are normalized to Spark `NULL` values during cleaning.
+These values are normalized to Spark `NULL` values during cleaning. :contentReference[oaicite:2]{index=2}
 
 ### Closed Date
 
@@ -155,7 +165,7 @@ Most belong to unresolved requests with statuses such as:
 
 One request marked `Closed` also has a missing `Closed Date`.
 
-Rather than fabricating a timestamp, the pipeline preserves the missing value.
+Rather than fabricating a timestamp, the pipeline preserves the missing value. :contentReference[oaicite:3]{index=3}
 
 ### Invalid Date Ordering
 
@@ -176,7 +186,7 @@ Invalid Date Order
 
 as a boolean column.
 
-These 40 records can therefore be excluded from calculations such as resolution time without losing the original records.
+These records are preserved but prevented from receiving invalid negative resolution-time values during transformation. :contentReference[oaicite:4]{index=4}
 
 ### Complaint Type Consistency
 
@@ -218,7 +228,7 @@ Full-row duplicates: 0
 Duplicate Unique Keys: 0
 ```
 
-No duplicate-removal step is currently necessary.
+No duplicate-removal step is necessary. :contentReference[oaicite:5]{index=5}
 
 ### Agency Validation
 
@@ -229,7 +239,7 @@ Missing or blank agencies: 0
 Agency code/name inconsistencies: 0
 ```
 
-No agency cleaning is currently required.
+No agency cleaning is required. :contentReference[oaicite:6]{index=6}
 
 ## PySpark Ingestion
 
@@ -255,12 +265,14 @@ Important expected fields include:
 - `Status`
 - `Borough`
 
-The ingestion stage currently validates:
+The ingestion stage validates:
 
 ```text
 381,228 rows
 44 raw columns
 ```
+
+:contentReference[oaicite:7]{index=7}
 
 ## PySpark Inspection
 
@@ -295,8 +307,6 @@ Current inspections include:
 
 The inspection layer is intentionally separate from the cleaning layer.
 
-This allows the project to follow the workflow:
-
 ```text
 Inspect
    ↓
@@ -309,7 +319,7 @@ Clean
 Validate
 ```
 
-rather than modifying the data blindly.
+This prevents the pipeline from modifying data blindly. :contentReference[oaicite:8]{index=8}
 
 ## PySpark Cleaning
 
@@ -323,13 +333,11 @@ The following fields are converted from raw strings into Spark timestamp types:
 - `Closed Date`
 - `Resolution Action Updated Date`
 
-This allows them to be used safely for downstream date and time calculations.
-
 ### Missing-Value Normalization
 
 Literal `N/A` placeholders are converted to Spark `NULL` values in known affected columns.
 
-The cleaning pipeline currently handles placeholders found in fields including:
+The cleaning pipeline handles placeholders found in:
 
 - `Problem Detail (formerly Descriptor)`
 - `Additional Details`
@@ -358,8 +366,6 @@ Invalid Date Order
 
 as a boolean flag.
 
-This allows later transformations to prevent invalid negative resolution-time calculations while preserving the original source data.
-
 ### Complaint Type Standardization
 
 The following complaint categories are standardized:
@@ -377,7 +383,7 @@ Before the processed dataset is written, the cleaning pipeline verifies that:
 - known `N/A` placeholders have been removed
 - unstandardized `ELEVATOR` and `PLUMBING` values no longer remain
 
-If these expectations fail, the pipeline raises an error rather than silently producing an incorrect processed dataset.
+If these expectations fail, the pipeline raises an error rather than silently producing incorrect processed data.
 
 ### Cleaned Dataset
 
@@ -397,9 +403,125 @@ The cleaned dataset is written to:
 data/processed/nyc_311_cleaned.parquet
 ```
 
+:contentReference[oaicite:9]{index=9}
+
+## PySpark Transformation
+
+`transform.py` converts the cleaned request-level dataset into analysis-ready data.
+
+### Request Date Features
+
+The transformation pipeline adds:
+
+- `request_date`
+- `request_year`
+- `request_month`
+- `request_day_of_week`
+- `request_hour`
+
+These fields allow downstream analysis by date, month, weekday, and hour.
+
+### Resolution Time
+
+The pipeline adds:
+
+```text
+resolution_time_hours
+```
+
+Resolution time is calculated only when:
+
+- `Status` is `Closed`
+- `Closed Date` is present
+- `Invalid Date Order` is `False`
+
+This prevents unresolved, non-Closed, or invalid-date records from producing misleading resolution-time values.
+
+### Transformation Validation
+
+Before transformed data is written, the pipeline verifies that:
+
+- all expected transformation columns exist
+- the transformed row count matches the cleaned row count
+- invalid date-order records do not have resolution times
+- unresolved records do not have resolution times
+- non-Closed records do not have resolution times
+- no negative resolution times exist
+
+The transformed request-level dataset contains:
+
+```text
+Rows: 381,228
+Columns: 51
+Invalid rows with resolution time: 0
+Non-Closed rows with resolution time: 0
+Negative resolution times: 0
+```
+
+## Transformation Outputs
+
+The transformation stage produces one request-level transformed dataset and four summary datasets.
+
+### Transformed Request-Level Dataset
+
+```text
+data/transformed/nyc_311_transformed.parquet
+```
+
+This dataset contains the original cleaned fields plus derived analytical columns.
+
+### Complaint Summary
+
+```text
+data/transformed/complaints_summary.parquet
+```
+
+Contains:
+
+- complaint type
+- request count
+- average resolution time in hours
+
+### Borough Summary
+
+```text
+data/transformed/borough_summary.parquet
+```
+
+Contains:
+
+- borough
+- request count
+- average resolution time in hours
+
+### Agency Summary
+
+```text
+data/transformed/agency_summary.parquet
+```
+
+Contains:
+
+- agency
+- request count
+- average resolution time in hours
+
+### Date Summary
+
+```text
+data/transformed/date_summary.parquet
+```
+
+Contains:
+
+- request date
+- request count
+
+These datasets provide reusable inputs for SQL analysis without requiring every analytical query to rebuild the same aggregations.
+
 ## Why Parquet?
 
-The processed layer uses Parquet for downstream analytical processing.
+The processed and transformed layers use Parquet for analytical processing.
 
 Unlike CSV, Parquet is a columnar storage format designed for analytical workloads.
 
@@ -416,7 +538,7 @@ Benefits include:
 
 The raw dataset remains CSV because that is how the source data is obtained from NYC Open Data.
 
-Spark writes the cleaned Parquet dataset as a directory containing multiple partition files.
+Spark writes Parquet datasets as directories containing multiple partition files.
 
 Example:
 
@@ -429,50 +551,24 @@ nyc_311_cleaned.parquet/
 └── ...
 ```
 
-Spark reads the directory as one logical dataset.
-
-## Planned PySpark Transformations
-
-The next stage of the project will transform the cleaned Parquet dataset into structures that are more useful for analysis.
-
-Planned transformations include:
-
-- request year
-- request month
-- request day of week
-- valid resolution-time calculations
-- complaint volume aggregations
-- borough-level aggregations
-- agency-level aggregations
-- complaint-type aggregations
-- date-based aggregations
-- null-aware transformations
-
-Invalid date-order records will be accounted for when calculating resolution times so that misleading negative durations are not produced.
-
-The transformed outputs will be written to the:
-
-```text
-data/transformed/
-```
-
-layer.
+Spark reads the directory as one logical dataset. :contentReference[oaicite:10]{index=10}
 
 ## SQL Analysis
 
-SQL will be used after the transformation stage to answer analytical questions using the processed data.
+SQL is the next stage of the project.
 
-Planned questions include:
+The SQL layer will use the transformed request-level dataset and summary outputs to answer analytical questions such as:
 
 - Which complaint types generated the most requests?
 - Which boroughs generated the highest request volume?
 - Which agencies handled the most requests?
 - How did request volume change throughout the holiday period?
-- Which complaint types had the longest resolution times?
+- Which complaint types had the longest average resolution times?
 - How did resolution time vary by borough?
 - How did resolution time vary by agency?
 - How did complaint patterns differ across boroughs?
 - How did complaint volume change by day or week?
+- Which periods experienced unusually high request volume?
 
 The SQL portion will demonstrate concepts including:
 
@@ -499,23 +595,41 @@ This stage will focus on transferring the existing pipeline workflow rather than
 nyc-311-data-pipeline/
 ├── data/
 │   ├── raw/
-│   │   └── nyc_311_raw.csv
+│   │   └── .gitkeep
 │   ├── processed/
-│   │   └── nyc_311_cleaned.parquet/
+│   │   └── .gitkeep
 │   └── transformed/
+│       └── .gitkeep
 ├── notebooks/
 ├── src/
 │   ├── ingest.py
 │   ├── inspection.py
-│   └── clean.py
+│   ├── clean.py
+│   └── transform.py
 ├── README.md
 ├── requirements.txt
 └── .gitignore
 ```
 
-The raw and processed datasets are excluded from GitHub because of their size.
+The actual datasets are excluded from GitHub because of their size.
 
-Additional pipeline files will be added as the transformation and analytical stages are completed.
+The `.gitkeep` files allow the repository to preserve the intended directory structure while keeping generated data out of version control.
+
+Locally, the pipeline produces:
+
+```text
+data/
+├── raw/
+│   └── nyc_311_raw.csv
+├── processed/
+│   └── nyc_311_cleaned.parquet/
+└── transformed/
+    ├── nyc_311_transformed.parquet/
+    ├── complaints_summary.parquet/
+    ├── borough_summary.parquet/
+    ├── agency_summary.parquet/
+    └── date_summary.parquet/
+```
 
 ## Technologies
 
@@ -575,9 +689,11 @@ Inspection
    ↓
 Cleaning
    ↓
-Parquet Storage
+Processed Parquet
    ↓
 Transformation
+   ↓
+Transformed Parquet & Summaries
    ↓
 SQL Analysis
    ↓
@@ -586,7 +702,7 @@ Databricks
 
 The project emphasizes both implementation and data engineering decision-making.
 
-Instead of simply applying transformations, each stage is designed to answer a specific question:
+Each stage is designed to answer a specific question:
 
 - Is the expected source data present?
 - Does the schema contain the fields the pipeline depends on?
@@ -594,6 +710,7 @@ Instead of simply applying transformations, each stage is designed to answer a s
 - Which issues should actually be corrected?
 - Which missing values should be preserved?
 - How should suspicious source records be handled without fabricating information?
-- How can cleaned data be structured efficiently for downstream analytics?
+- How should valid analytical metrics such as resolution time be defined?
+- How can transformed data be structured efficiently for downstream analytics?
 
 The final result is intended to demonstrate an end-to-end data engineering workflow built around PySpark, Parquet, SQL, and Databricks.
