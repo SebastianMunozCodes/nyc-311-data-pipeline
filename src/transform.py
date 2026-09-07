@@ -126,7 +126,6 @@ def complaints_summary(df):
 
     return complaints_df
 
-
 def borough_summary(df):
     borough_df = (
         df
@@ -163,7 +162,6 @@ def date_summary(df):
     )
 
     return date_df
-
 
 def save_summary(df, output_path):
     df.write.mode("overwrite").parquet(str(output_path))

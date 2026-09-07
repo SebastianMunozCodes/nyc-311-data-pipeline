@@ -23,7 +23,6 @@ spark = (
     .getOrCreate()
 )
 
-
 def convert_dates(df):
     converted_df = df.withColumns({
         "Created Date": F.to_timestamp(
@@ -42,7 +41,6 @@ def convert_dates(df):
 
     return converted_df
 
-
 def normalize_missing_placeholders(df):
     for column_name in PLACEHOLDER_COLUMNS:
         df = df.withColumn(
@@ -57,7 +55,6 @@ def normalize_missing_placeholders(df):
 
     return df
 
-
 def handle_invalid_date_ordering(df):
     cleaned_df = df.withColumn(
         "Invalid Date Order",
@@ -68,7 +65,6 @@ def handle_invalid_date_ordering(df):
     )
 
     return cleaned_df
-
 
 def standardize_complaint_types(df):
     cleaned_df = df.withColumn(
@@ -86,19 +82,29 @@ def standardize_complaint_types(df):
 
     return cleaned_df
 
-
 def validate_cleaned_data(df):
     print("Validating cleaned data...")
 
-    invalid_date_count = (
+    invalid_flag_mismatch_count = (
         df
-        .filter(F.col("Invalid Date Order") == True)
+        .filter(
+            (
+                (F.col("Created Date") > F.col("Closed Date")) &
+                (F.col("Invalid Date Order") == False)
+            )
+            |
+            (
+                (F.col("Created Date") <= F.col("Closed Date")) &
+                (F.col("Invalid Date Order") == True)
+            )
+        )
         .count()
     )
 
-    if invalid_date_count != 40:
+    if invalid_flag_mismatch_count != 0:
         raise ValueError(
-            f"Expected 40 invalid date order records, found {invalid_date_count}"
+            f"Found {invalid_flag_mismatch_count} records with incorrect "
+            f"Invalid Date Order flags"
         )
 
     remaining_placeholders = 0
@@ -133,10 +139,8 @@ def validate_cleaned_data(df):
 
     print("Cleaned data validation passed.")
 
-
 def save_cleaned_data(df):
     df.write.mode("overwrite").parquet(str(PROCESSED_FILE))
-
 
 if __name__ == "__main__":
     df = load_raw_data(spark)
