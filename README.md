@@ -2,7 +2,7 @@
 
 A data engineering portfolio project that builds an end-to-end PySpark pipeline for ingesting, validating, cleaning, transforming, and analyzing NYC 311 service request data.
 
-The project uses a historical NYC 311 dataset to demonstrate practical data engineering concepts including Spark DataFrames, data quality validation, Parquet storage, transformations, analytical summaries, SQL, and Databricks. :contentReference[oaicite:0]{index=0}
+The project uses a historical NYC 311 dataset to demonstrate practical data engineering concepts including Spark DataFrames, data-quality validation, Parquet storage, transformations, analytical summaries, Spark SQL, and Databricks.
 
 ## Table of Contents
 
@@ -28,20 +28,24 @@ The project uses a historical NYC 311 dataset to demonstrate practical data engi
 
 This project builds an end-to-end data engineering pipeline using NYC 311 service request data.
 
-The pipeline begins with raw CSV data from NYC Open Data and processes it locally using PySpark. Data quality issues are identified through a dedicated inspection stage before cleaning rules are applied.
+The pipeline begins with raw CSV data from NYC Open Data and processes it locally using PySpark. Data-quality issues are identified through a dedicated inspection stage before cleaning rules are applied.
 
 The cleaned dataset is stored in Parquet format, transformed into analysis-ready data, and used to produce summary datasets for complaint types, boroughs, agencies, and request dates.
+
+The transformed request-level dataset is then analyzed using Spark SQL.
 
 ### Dataset Scope
 
 - **Source:** NYC Open Data
 - **Dataset:** 311 Service Requests from 2020 to Present
-- **Date range:** November 27, 2025 through January 2, 2026
-- **Rows:** 381,228
+- **Date range:** November 27, 2025 12:00 AM through January 2, 2026 11:44:59 PM
+- **Rows:** 389,087
 - **Raw columns:** 44
-- **Coverage:** All five NYC boroughs
+- **Coverage:** All five NYC boroughs, with source records containing `Unspecified` borough values preserved
 
-A historical date range was intentionally selected so the project could work with a mostly completed set of service requests rather than continuously changing current data. :contentReference[oaicite:1]{index=1}
+The dataset intentionally covers the Thanksgiving through New Year holiday period.
+
+A historical date range was selected so the project could analyze a fixed and reproducible snapshot rather than continuously changing current data.
 
 ## Pipeline Architecture
 
@@ -66,12 +70,12 @@ Transformed Parquet
       ↓
 Summary Datasets
       ↓
-SQL Analysis
+Spark SQL Analysis
       ↓
 Databricks
 ```
 
-PySpark is the primary processing engine throughout the pipeline.
+PySpark is the primary processing engine throughout the local pipeline.
 
 ## Current Project Status
 
@@ -114,24 +118,29 @@ PySpark is the primary processing engine throughout the pipeline.
 - Borough summary dataset
 - Agency summary dataset
 - Date summary dataset
+- Spark SQL analysis layer
+- CTE-based analytical queries
+- Window functions and ranking analysis
+- Borough complaint pattern analysis
+- Agency workload and resolution-speed analysis
+- Hourly request-volume analysis
+- Day-of-week request analysis
+- Daily request spike analysis
+- Complaint-level peak-hour analysis
+- Borough-level complaint resolution comparison
+- Local SQL execution through PySpark
 - Git-tracked data directory structure using `.gitkeep`
 
-### In Progress
+### Next Phase
 
-- SQL analysis layer
-
-### Planned
-
-- Build analytical SQL queries
-- Use CTEs, joins, aggregations, ranking, and window functions
-- Analyze complaint volume and resolution-time patterns
-- Introduce Databricks into the workflow
-- Recreate meaningful parts of the local Spark workflow in Databricks
+- Recreate meaningful parts of the workflow in Databricks
+- Run PySpark and SQL analysis in a Databricks environment
 - Document final analytical findings
+- Complete final GitHub documentation and repository polish
 
 ## Data Quality Findings
 
-The inspection stage identified several data-quality issues before cleaning logic was implemented.
+The inspection stage identifies data-quality issues before cleaning logic is implemented.
 
 This separation ensures that cleaning decisions are based on observed properties of the dataset rather than assumptions.
 
@@ -149,11 +158,11 @@ N/A
 
 as a missing-data placeholder in several string columns.
 
-These values are normalized to Spark `NULL` values during cleaning. :contentReference[oaicite:2]{index=2}
+These values are normalized to Spark `NULL` values during cleaning.
 
 ### Closed Date
 
-There are **5,653 requests with a missing `Closed Date`**.
+There are **5,647 requests with a missing `Closed Date`**.
 
 Most belong to unresolved requests with statuses such as:
 
@@ -165,16 +174,20 @@ Most belong to unresolved requests with statuses such as:
 
 One request marked `Closed` also has a missing `Closed Date`.
 
-Rather than fabricating a timestamp, the pipeline preserves the missing value. :contentReference[oaicite:3]{index=3}
+Rather than fabricating a timestamp, the pipeline preserves the missing value.
+
+The inspection stage also identified non-Closed requests that contain a `Closed Date`. Because the source data can contain these combinations, resolution time is not calculated solely based on the presence of a `Closed Date`.
 
 ### Invalid Date Ordering
 
-Inspection identified **40 records where `Created Date` occurs after `Closed Date`**.
+Inspection identified **42 records where `Created Date` occurs after `Closed Date`**.
 
 Of these:
 
-- 38 are Pending DOT Street Light Condition requests
-- 2 are Closed DOT Street Condition requests
+- 40 are Pending requests
+- 2 are Closed requests
+
+All 42 records also have `Closed Date` equal to `Resolution Action Updated Date`.
 
 The original timestamps are preserved.
 
@@ -186,7 +199,7 @@ Invalid Date Order
 
 as a boolean column.
 
-These records are preserved but prevented from receiving invalid negative resolution-time values during transformation. :contentReference[oaicite:4]{index=4}
+These records remain in the dataset but are prevented from receiving invalid negative resolution-time values during transformation.
 
 ### Complaint Type Consistency
 
@@ -219,6 +232,8 @@ These values are preserved when reliable replacement information is unavailable.
 
 The pipeline does not fabricate geographic information.
 
+Records with an `Unspecified` borough remain in the processed and transformed datasets but are excluded from SQL analyses intended specifically to compare the five NYC boroughs.
+
 ### Duplicate Validation
 
 The dataset contains:
@@ -228,7 +243,7 @@ Full-row duplicates: 0
 Duplicate Unique Keys: 0
 ```
 
-No duplicate-removal step is necessary. :contentReference[oaicite:5]{index=5}
+No duplicate-removal step is necessary.
 
 ### Agency Validation
 
@@ -239,7 +254,7 @@ Missing or blank agencies: 0
 Agency code/name inconsistencies: 0
 ```
 
-No agency cleaning is required. :contentReference[oaicite:6]{index=6}
+No agency cleaning is required.
 
 ## PySpark Ingestion
 
@@ -268,11 +283,9 @@ Important expected fields include:
 The ingestion stage validates:
 
 ```text
-381,228 rows
+389,087 rows
 44 raw columns
 ```
-
-:contentReference[oaicite:7]{index=7}
 
 ## PySpark Inspection
 
@@ -319,7 +332,7 @@ Clean
 Validate
 ```
 
-This prevents the pipeline from modifying data blindly. :contentReference[oaicite:8]{index=8}
+This prevents the pipeline from modifying data blindly.
 
 ## PySpark Cleaning
 
@@ -352,7 +365,7 @@ Post-cleaning validation confirms that no known `N/A` placeholders remain.
 
 ### Invalid Date Ordering
 
-The cleaning pipeline preserves the 40 records where:
+The cleaning pipeline preserves records where:
 
 ```text
 Created Date > Closed Date
@@ -365,6 +378,8 @@ Invalid Date Order
 ```
 
 as a boolean flag.
+
+The source timestamps themselves are not altered.
 
 ### Complaint Type Standardization
 
@@ -379,9 +394,11 @@ PLUMBING → Plumbing
 
 Before the processed dataset is written, the cleaning pipeline verifies that:
 
-- exactly 40 invalid date-order records are flagged
+- `Invalid Date Order` flags correctly match the underlying date-order condition
 - known `N/A` placeholders have been removed
 - unstandardized `ELEVATOR` and `PLUMBING` values no longer remain
+
+The invalid-date validation checks the cleaning rule itself rather than depending on a hardcoded number of invalid records.
 
 If these expectations fail, the pipeline raises an error rather than silently producing incorrect processed data.
 
@@ -390,11 +407,11 @@ If these expectations fail, the pipeline raises an error rather than silently pr
 The cleaned output contains:
 
 ```text
-Rows: 381,228
+Rows: 389,087
 Columns: 45
 Duplicate Unique Keys: 0
 Remaining known N/A placeholders: 0
-Invalid Date Order records: 40
+Invalid Date Order records: 42
 ```
 
 The cleaned dataset is written to:
@@ -402,8 +419,6 @@ The cleaned dataset is written to:
 ```text
 data/processed/nyc_311_cleaned.parquet
 ```
-
-:contentReference[oaicite:9]{index=9}
 
 ## PySpark Transformation
 
@@ -451,7 +466,7 @@ Before transformed data is written, the pipeline verifies that:
 The transformed request-level dataset contains:
 
 ```text
-Rows: 381,228
+Rows: 389,087
 Columns: 51
 Invalid rows with resolution time: 0
 Non-Closed rows with resolution time: 0
@@ -517,7 +532,7 @@ Contains:
 - request date
 - request count
 
-These datasets provide reusable inputs for SQL analysis without requiring every analytical query to rebuild the same aggregations.
+These datasets provide reusable analytical outputs without requiring every downstream task to rebuild the same aggregations.
 
 ## Why Parquet?
 
@@ -551,43 +566,138 @@ nyc_311_cleaned.parquet/
 └── ...
 ```
 
-Spark reads the directory as one logical dataset. :contentReference[oaicite:10]{index=10}
+Spark reads the directory as one logical dataset.
 
 ## SQL Analysis
 
-SQL is the next stage of the project.
+The transformed request-level Parquet dataset is analyzed using Spark SQL.
 
-The SQL layer will use the transformed request-level dataset and summary outputs to answer analytical questions such as:
+The SQL analysis is stored in:
 
-- Which complaint types generated the most requests?
-- Which boroughs generated the highest request volume?
-- Which agencies handled the most requests?
-- How did request volume change throughout the holiday period?
-- Which complaint types had the longest average resolution times?
-- How did resolution time vary by borough?
-- How did resolution time vary by agency?
-- How did complaint patterns differ across boroughs?
-- How did complaint volume change by day or week?
-- Which periods experienced unusually high request volume?
+```text
+sql/analysis.sql
+```
 
-The SQL portion will demonstrate concepts including:
+and executed locally through:
+
+```text
+src/run_sql.py
+```
+
+`run_sql.py` creates a temporary Spark SQL view over the transformed Parquet dataset, reads the SQL analysis file, executes each query, and prints labeled results for review.
+
+### Analytical Queries
+
+The SQL layer currently contains nine analytical queries.
+
+#### 1. Top Complaint Types Within Each Borough
+
+Ranks the top three complaint types within each NYC borough and calculates each complaint type's percentage share of total borough requests.
+
+#### 2. High-Volume and Slow-Resolution Complaint Types
+
+Identifies complaint categories with above-average request volume and compares:
+
+- total request count
+- resolved request count
+- average resolution time
+
+#### 3. Agency Workload vs Resolution Speed
+
+Ranks agencies by request workload and compares workload with average resolution time.
+
+Agencies without valid resolution-time metrics remain visible rather than being removed from the analysis.
+
+#### 4. Borough Resolution Coverage and Speed
+
+Compares the five NYC boroughs using:
+
+- total requests
+- resolved requests
+- average resolution time
+- resolution coverage percentage
+
+#### 5. Peak Hours for 311 Activity
+
+Analyzes request volume across all 24 hours of the day.
+
+The query:
+
+- counts requests by hour
+- ranks hours by activity
+- calculates each hour's percentage share of total requests
+
+#### 6. Day-of-Week Request Patterns
+
+Calculates average request volume per calendar day for each weekday.
+
+The analysis also:
+
+- distinguishes weekdays from weekends
+- compares average resolution times
+- ranks weekdays by average daily request volume
+
+#### 7. Daily Spike vs the Average Day
+
+Compares every date in the holiday period with the overall average daily request count.
+
+Each date is classified as:
+
+- Above Average
+- Below Average
+- Average
+
+The query also calculates the percentage difference from the overall daily average.
+
+#### 8. Peak Hour by Complaint Type
+
+Identifies the highest-volume request hours for the ten most common complaint categories.
+
+Window functions are used to rank hourly activity independently within each complaint type.
+
+#### 9. Complaint Resolution Differences Across Boroughs
+
+Compares average resolution times for high-volume complaint types across NYC boroughs.
+
+A minimum resolved-request threshold is applied to prevent rankings from being driven by extremely small samples.
+
+### SQL Concepts Demonstrated
+
+The SQL analysis uses:
 
 - filtering
 - grouping
 - aggregations
+- conditional aggregation
 - CTEs
 - joins
+- cross joins
+- subqueries
 - window functions
-- ranking
+- `RANK`
+- `DENSE_RANK`
+- percentage calculations
 - date-based analysis
+- time-based analysis
+
+Records with an `Unspecified` borough remain preserved in the transformed dataset but are excluded from analyses intended specifically to compare the five NYC boroughs.
 
 ## Databricks
 
-A later stage of the project will recreate meaningful parts of the local Spark workflow in Databricks.
+The next phase of the project will recreate meaningful parts of the local Spark workflow in Databricks.
 
-The purpose is to demonstrate how the same PySpark, Parquet, and SQL concepts used locally can operate within a modern data engineering platform.
+The goal is to demonstrate how the same PySpark, Parquet, and SQL concepts used locally can operate within a modern data engineering platform.
 
-This stage will focus on transferring the existing pipeline workflow rather than rebuilding an unrelated project inside Databricks.
+This phase will focus on transferring the existing workflow rather than rebuilding an unrelated project.
+
+Planned Databricks work includes:
+
+- loading project data into Databricks
+- working with Spark DataFrames in the Databricks environment
+- recreating selected transformations
+- running SQL analysis
+- comparing the local and Databricks workflows
+- documenting the final project results
 
 ## Project Structure
 
@@ -601,11 +711,14 @@ nyc-311-data-pipeline/
 │   └── transformed/
 │       └── .gitkeep
 ├── notebooks/
+├── sql/
+│   └── analysis.sql
 ├── src/
 │   ├── ingest.py
 │   ├── inspection.py
 │   ├── clean.py
-│   └── transform.py
+│   ├── transform.py
+│   └── run_sql.py
 ├── README.md
 ├── requirements.txt
 └── .gitignore
@@ -613,7 +726,9 @@ nyc-311-data-pipeline/
 
 The actual datasets are excluded from GitHub because of their size.
 
-The `.gitkeep` files allow the repository to preserve the intended directory structure while keeping generated data out of version control.
+The `.gitkeep` files allow the repository to preserve the intended data directory structure while keeping generated datasets out of version control.
+
+Generated inspection and SQL output text files are also excluded from version control.
 
 Locally, the pipeline produces:
 
@@ -695,7 +810,7 @@ Transformation
    ↓
 Transformed Parquet & Summaries
    ↓
-SQL Analysis
+Spark SQL Analysis
    ↓
 Databricks
 ```
@@ -712,5 +827,7 @@ Each stage is designed to answer a specific question:
 - How should suspicious source records be handled without fabricating information?
 - How should valid analytical metrics such as resolution time be defined?
 - How can transformed data be structured efficiently for downstream analytics?
+- How can SQL be used to identify meaningful patterns in the transformed data?
+- How can the same workflow be transferred from a local Spark environment to Databricks?
 
 The final result is intended to demonstrate an end-to-end data engineering workflow built around PySpark, Parquet, SQL, and Databricks.
