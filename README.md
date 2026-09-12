@@ -1,14 +1,14 @@
 # NYC 311 Data Engineering Pipeline
 
-A data engineering portfolio project that builds an end-to-end PySpark pipeline for ingesting, validating, cleaning, transforming, and analyzing NYC 311 service request data.
+An end-to-end data engineering portfolio project that uses PySpark, Parquet, Spark SQL, and Databricks to ingest, validate, clean, transform, analyze, and visualize NYC 311 service request data.
 
-The project uses a historical NYC 311 dataset to demonstrate practical data engineering concepts including Spark DataFrames, data-quality validation, Parquet storage, transformations, analytical summaries, Spark SQL, and Databricks.
+The project demonstrates practical data engineering concepts including Spark DataFrames, data-quality validation, analytical transformations, columnar storage, SQL analytics, window functions, and cloud-based Spark workflows.
 
 ## Table of Contents
 
 - [Project Overview](#project-overview)
 - [Pipeline Architecture](#pipeline-architecture)
-- [Current Project Status](#current-project-status)
+- [Project Status](#project-status)
 - [Data Quality Findings](#data-quality-findings)
 - [PySpark Ingestion](#pyspark-ingestion)
 - [PySpark Inspection](#pyspark-inspection)
@@ -18,6 +18,7 @@ The project uses a historical NYC 311 dataset to demonstrate practical data engi
 - [Why Parquet?](#why-parquet)
 - [SQL Analysis](#sql-analysis)
 - [Databricks](#databricks)
+- [Key Findings](#key-findings)
 - [Project Structure](#project-structure)
 - [Technologies](#technologies)
 - [Requirements](#requirements)
@@ -28,11 +29,13 @@ The project uses a historical NYC 311 dataset to demonstrate practical data engi
 
 This project builds an end-to-end data engineering pipeline using NYC 311 service request data.
 
-The pipeline begins with raw CSV data from NYC Open Data and processes it locally using PySpark. Data-quality issues are identified through a dedicated inspection stage before cleaning rules are applied.
+The workflow begins with raw CSV data from NYC Open Data and processes it locally using PySpark. A dedicated inspection stage identifies data-quality issues before cleaning rules are applied.
 
-The cleaned dataset is stored in Parquet format, transformed into analysis-ready data, and used to produce summary datasets for complaint types, boroughs, agencies, and request dates.
+The cleaned data is stored in Parquet format and transformed into an analysis-ready request-level dataset with additional date, time, and resolution metrics.
 
-The transformed request-level dataset is then analyzed using Spark SQL.
+Spark SQL is then used to analyze complaint patterns, borough differences, agency workload, request timing, daily activity, and resolution behavior.
+
+The final transformed Parquet dataset is also loaded into Databricks, where the analytical workflow is reproduced using Spark DataFrames, SQL, and native Databricks visualizations.
 
 ### Dataset Scope
 
@@ -73,23 +76,23 @@ Summary Datasets
 Spark SQL Analysis
       ↓
 Databricks
+      ↓
+Visual Analysis
 ```
 
-PySpark is the primary processing engine throughout the local pipeline.
+PySpark is the primary processing engine throughout the pipeline, with Databricks providing the final cloud-based Spark and visualization environment.
 
-## Current Project Status
+## Project Status
 
 ### Completed
 
-- Project structure and virtual environment
 - NYC Open Data acquisition
-- Local PySpark configuration
-- Raw CSV ingestion with PySpark
-- Raw file existence validation
-- Expected column validation
+- Local PySpark environment configuration
+- Raw CSV ingestion
+- File and expected-column validation
 - Spark schema inspection
-- Dataset row and column validation
-- Date range validation
+- Row and column validation
+- Date-range validation
 - Missing-value analysis
 - Missing-value placeholder detection
 - Full-row duplicate detection
@@ -129,18 +132,17 @@ PySpark is the primary processing engine throughout the local pipeline.
 - Complaint-level peak-hour analysis
 - Borough-level complaint resolution comparison
 - Local SQL execution through PySpark
-- Git-tracked data directory structure using `.gitkeep`
-
-### Next Phase
-
-- Recreate meaningful parts of the workflow in Databricks
-- Run PySpark and SQL analysis in a Databricks environment
-- Document final analytical findings
-- Complete final GitHub documentation and repository polish
+- Databricks data loading
+- Databricks Spark DataFrame validation
+- Databricks SQL analysis
+- Databricks visualizations
+- Databricks notebook export
+- Databricks HTML export
+- Git-tracked project structure and documentation
 
 ## Data Quality Findings
 
-The inspection stage identifies data-quality issues before cleaning logic is implemented.
+The inspection stage identifies data-quality issues before cleaning logic is applied.
 
 This separation ensures that cleaning decisions are based on observed properties of the dataset rather than assumptions.
 
@@ -258,7 +260,7 @@ No agency cleaning is required.
 
 ## PySpark Ingestion
 
-`ingest.py` is responsible for loading and validating the raw NYC 311 dataset.
+`src/ingest.py` is responsible for loading and validating the raw NYC 311 dataset.
 
 The ingestion stage:
 
@@ -289,9 +291,9 @@ The ingestion stage validates:
 
 ## PySpark Inspection
 
-`inspection.py` performs data-quality analysis before cleaning decisions are applied.
+`src/inspection.py` performs data-quality analysis before cleaning decisions are applied.
 
-Current inspections include:
+Inspections include:
 
 - row count
 - column count
@@ -336,7 +338,7 @@ This prevents the pipeline from modifying data blindly.
 
 ## PySpark Cleaning
 
-`clean.py` applies the cleaning decisions identified during inspection.
+`src/clean.py` applies the cleaning decisions identified during inspection.
 
 ### Datetime Conversion
 
@@ -422,7 +424,7 @@ data/processed/nyc_311_cleaned.parquet
 
 ## PySpark Transformation
 
-`transform.py` converts the cleaned request-level dataset into analysis-ready data.
+`src/transform.py` converts the cleaned request-level dataset into analysis-ready data.
 
 ### Request Date Features
 
@@ -588,7 +590,7 @@ src/run_sql.py
 
 ### Analytical Queries
 
-The SQL layer currently contains nine analytical queries.
+The SQL layer contains nine analytical queries.
 
 #### 1. Top Complaint Types Within Each Borough
 
@@ -637,9 +639,9 @@ The analysis also:
 - compares average resolution times
 - ranks weekdays by average daily request volume
 
-#### 7. Daily Spike vs the Average Day
+#### 7. Daily Spike vs Daily Average
 
-Compares every date in the holiday period with the overall average daily request count.
+Compares each analyzed date with the overall average daily request count.
 
 Each date is classified as:
 
@@ -676,6 +678,7 @@ The SQL analysis uses:
 - window functions
 - `RANK`
 - `DENSE_RANK`
+- `HAVING`
 - percentage calculations
 - date-based analysis
 - time-based analysis
@@ -684,25 +687,160 @@ Records with an `Unspecified` borough remain preserved in the transformed datase
 
 ## Databricks
 
-The next phase of the project will recreate meaningful parts of the local Spark workflow in Databricks.
+The final analytical stage transfers the transformed NYC 311 dataset into Databricks.
 
-The goal is to demonstrate how the same PySpark, Parquet, and SQL concepts used locally can operate within a modern data engineering platform.
+The transformed Parquet data is loaded from a Databricks Volume using PySpark:
 
-This phase will focus on transferring the existing workflow rather than rebuilding an unrelated project.
+```python
+parquet_path = "/Volumes/workspace/default/nyc_311_data/"
+df = spark.read.parquet(parquet_path)
+```
 
-Planned Databricks work includes:
+The Databricks notebook validates the imported dataset, inspects its Spark schema and analytical columns, and creates a temporary SQL view:
 
-- loading project data into Databricks
-- working with Spark DataFrames in the Databricks environment
-- recreating selected transformations
-- running SQL analysis
-- comparing the local and Databricks workflows
-- documenting the final project results
+```python
+df.createOrReplaceTempView("nyc_311")
+```
+
+The SQL analysis is then executed within the Databricks environment using SQL cells.
+
+This demonstrates that the same transformed Parquet data and Spark-oriented analytical workflow can move from a local environment into Databricks without redesigning the underlying pipeline.
+
+### Databricks Outputs
+
+The repository contains both the notebook export and a rendered HTML export:
+
+```text
+databricks/nyc_311_analysis.ipynb
+databricks/nyc_311_analysis.html
+```
+
+The notebook contains the PySpark and SQL workflow.
+
+The HTML export preserves the executed Databricks results and native visualizations for review outside the Databricks workspace.
+
+### Databricks Visualizations
+
+Six visualizations were created from the SQL analysis:
+
+- Top Complaint Types by Borough Share
+- Agency Workload vs Resolution Speed
+- Borough Resolution Coverage vs Average Resolution Time
+- Request Volume by Hour of Day
+- Average Request Volume by Day of Week
+- Daily Request Volume vs Average
+
+All six exported charts are stored in:
+
+```text
+charts/
+```
+
+Three representative visualizations are highlighted below.
+
+### Top Complaint Types by Borough Share
+
+This chart highlights how complaint composition differs across NYC boroughs.
+
+![Top Complaint Types by Borough Share](charts/top_complaint_types_by_borough_share.png)
+
+### Daily Request Volume vs Average
+
+This visualization compares daily 311 request volume with the overall daily average across the holiday-period dataset.
+
+![Daily Request Volume vs Average](charts/daily_request_volume_vs_average.png)
+
+### Agency Workload vs Resolution Speed
+
+This scatter plot compares agency request volume with average resolution time, demonstrating that workload and resolution behavior vary substantially across agencies.
+
+![Agency Workload vs Resolution Speed](charts/agency_workload_vs_resolution_speed.png)
+
+The remaining visualizations are also available in the `charts/` directory:
+
+```text
+charts/
+├── agency_workload_vs_resolution_speed.png
+├── average_request_volume_by_day_of_week.png
+├── borough_resolution_coverage_vs_average_resolution_time.png
+├── daily_request_volume_vs_average.png
+├── request_volume_by_hour_of_day.png
+└── top_complaint_types_by_borough_share.png
+```
+
+## Key Findings
+
+The SQL and Databricks analysis produced several notable patterns within the selected holiday-period dataset.
+
+### Complaint Patterns Differ Strongly by Borough
+
+The most common complaint types vary substantially across boroughs.
+
+- **Bronx:** Residential Noise represents approximately **40.76%** of borough requests and is the dominant complaint category.
+- **Brooklyn:** Illegal Parking and HEAT/HOT WATER are the two largest complaint categories.
+- **Manhattan:** HEAT/HOT WATER is the largest complaint category.
+- **Queens:** Illegal Parking is the most common complaint category.
+- **Staten Island:** Illegal Parking is the most common complaint category, with Snow or Ice also representing a notable share.
+
+These differences demonstrate why borough-level aggregation is more informative than relying only on citywide totals.
+
+### Request Activity Peaks During the Morning
+
+Across all requests, the highest-volume hour is approximately **10:00 AM**, with about **23,395 requests** occurring during that hour across the dataset.
+
+The surrounding morning hours also show high activity, indicating that 311 request volume rises sharply after the early-morning period.
+
+### Daily Volume Changes Throughout the Holiday Period
+
+The average daily request volume is approximately **10,516 requests**.
+
+Notable days include:
+
+- **December 15, 2025:** approximately **16,388 requests**, about **55.84% above** the daily average
+- **December 25, 2025:** approximately **6,216 requests**, about **40.89% below** the daily average
+- **November 27, 2025:** approximately **8,147 requests**, about **22.53% below** the daily average
+
+The holiday period therefore contains substantial day-to-day variation rather than a uniform request pattern.
+
+### Weekdays Generally Produce More Requests Than Weekends
+
+Monday has the highest average daily request volume among the analyzed weekdays, followed by Tuesday and Friday.
+
+Saturday and Sunday show lower average request volumes than most weekdays.
+
+### Resolution Behavior Varies Across Agencies and Complaint Types
+
+Average resolution times differ substantially across agencies and complaint categories.
+
+For example, high-volume NYPD request categories can have relatively short average resolution times, while some housing-related complaint categories remain open much longer.
+
+These comparisons are descriptive rather than direct measures of agency performance because NYC agencies handle fundamentally different types of service requests and operational responsibilities.
+
+### Borough Resolution Coverage Is High
+
+Across the five boroughs, the large majority of eligible requests have valid resolution information.
+
+Resolution coverage is approximately:
+
+- Bronx: **99.51%**
+- Brooklyn: **98.44%**
+- Queens: **98.25%**
+- Staten Island: **98.21%**
+- Manhattan: **96.85%**
+
+Resolution-time comparisons should still be interpreted in the context of complaint type and agency responsibility rather than as simple performance rankings.
 
 ## Project Structure
 
 ```text
 nyc-311-data-pipeline/
+├── charts/
+│   ├── agency_workload_vs_resolution_speed.png
+│   ├── average_request_volume_by_day_of_week.png
+│   ├── borough_resolution_coverage_vs_average_resolution_time.png
+│   ├── daily_request_volume_vs_average.png
+│   ├── request_volume_by_hour_of_day.png
+│   └── top_complaint_types_by_borough_share.png
 ├── data/
 │   ├── raw/
 │   │   └── .gitkeep
@@ -710,7 +848,9 @@ nyc-311-data-pipeline/
 │   │   └── .gitkeep
 │   └── transformed/
 │       └── .gitkeep
-├── notebooks/
+├── databricks/
+│   ├── nyc_311_analysis.html
+│   └── nyc_311_analysis.ipynb
 ├── sql/
 │   └── analysis.sql
 ├── src/
@@ -719,14 +859,14 @@ nyc-311-data-pipeline/
 │   ├── clean.py
 │   ├── transform.py
 │   └── run_sql.py
+├── .gitignore
 ├── README.md
-├── requirements.txt
-└── .gitignore
+└── requirements.txt
 ```
 
 The actual datasets are excluded from GitHub because of their size.
 
-The `.gitkeep` files allow the repository to preserve the intended data directory structure while keeping generated datasets out of version control.
+The `.gitkeep` files preserve the intended data directory structure while keeping generated datasets out of version control.
 
 Generated inspection and SQL output text files are also excluded from version control.
 
@@ -751,9 +891,9 @@ data/
 - Python
 - Apache Spark
 - PySpark
+- Spark SQL
 - Parquet
 - PyArrow
-- SQL
 - Databricks
 - Git
 - GitHub
@@ -813,6 +953,8 @@ Transformed Parquet & Summaries
 Spark SQL Analysis
    ↓
 Databricks
+   ↓
+Visualization & Findings
 ```
 
 The project emphasizes both implementation and data engineering decision-making.
@@ -827,7 +969,8 @@ Each stage is designed to answer a specific question:
 - How should suspicious source records be handled without fabricating information?
 - How should valid analytical metrics such as resolution time be defined?
 - How can transformed data be structured efficiently for downstream analytics?
-- How can SQL be used to identify meaningful patterns in the transformed data?
-- How can the same workflow be transferred from a local Spark environment to Databricks?
+- How can SQL be used to identify meaningful patterns in transformed data?
+- How can the same Spark workflow be transferred from a local environment to Databricks?
+- How can analytical results be communicated through clear visualizations?
 
-The final result is intended to demonstrate an end-to-end data engineering workflow built around PySpark, Parquet, SQL, and Databricks.
+The final result demonstrates an end-to-end data engineering workflow built around PySpark, Parquet, Spark SQL, Databricks, and reproducible analytical decision-making.
