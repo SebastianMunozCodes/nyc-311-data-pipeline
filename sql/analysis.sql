@@ -232,7 +232,7 @@ ORDER BY
         WHEN RV.request_day_of_week = 'Saturday' THEN 7
     END;
 
--- Daily Spike vs the Average Day
+-- Daily Spike vs Daily Average
 WITH request_count AS (
     SELECT
         N.request_date,
