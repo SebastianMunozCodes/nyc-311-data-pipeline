@@ -893,7 +893,6 @@ data/
 - PySpark
 - Spark SQL
 - Parquet
-- PyArrow
 - Databricks
 - Git
 - GitHub
